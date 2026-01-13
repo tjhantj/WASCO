@@ -13,13 +13,13 @@ import exact
 import compare
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--s', type=int, default=5,
+parser.add_argument('--s', type=int, default=15,
                     help='user parameter s')
-parser.add_argument('--b', type=int, default=10,
+parser.add_argument('--b', type=int, default=30,
                     help='budget b')
 parser.add_argument('--t', type=str, default='',
                     help='a folder name for bound function') # ignore this argument
-parser.add_argument('--algorithm', default='naive',
+parser.add_argument('--algorithm', default="exp",
                     help='specify algorithm name')
 parser.add_argument('--network', default="../dataset/test/new_network.dat",
                     help='a folder name containing network.dat')
@@ -49,22 +49,7 @@ for u, v, data in G.edges(data=True):
 
 print(f"data: {args.network.split('/')[2]}, nodes: {len(G.nodes())}, edges: {len(G.edges())}")
 
-if args.algorithm == "naive":
-    start_time = time.time()
-    A = naive.run(G, args.s, args.b, args.t)
-    end_time = time.time()
-
-elif args.algorithm == "adv":
-    start_time = time.time()
-    A = adv.run(G, args.s, args.b, args.t)
-    end_time = time.time()
-
-elif args.algorithm == "adv_reuse":
-    start_time = time.time()
-    A = adv_reuse.run_reuse(G, args.s, args.b, args.t)
-    end_time = time.time()
-
-elif args.algorithm == "exp":
+if args.algorithm == "exp":
     if args.tactics[0] == 'T':
         T1_self_edge = True
     else:
@@ -106,26 +91,6 @@ elif args.algorithm == "exp":
         print(len(A), s_core_num, total_follower)
         exp_func.save_result_to_csv(A, s_core_num, total_time, memory_usage, args, total_follower)
     
-
-elif args.algorithm == "ekc":
-    start_time = time.time()
-    A, new_score_size, total_follower = EKC.run(G, args.s, args.b, args.t)
-    end_time = time.time()
-    total_time = end_time-start_time
-    
-    memory_after = process.memory_info().rss / (1024 * 1024)  # Convert to MB
-    memory_usage = memory_after - memory_before  # Calculate memory used
-    
-    write_header = not os.path.exists(args.output_path)
-    data = args.network.split('/')[4]
-
-    with open(args.output_path, 'a', newline='') as f:
-        writer = csv.writer(f)
-        if write_header:
-            writer.writerow(["data", "s", "b", "compare", "num_s_core", "follower", "num_anchored_edges", "total_time", "memory_usage"])
-        writer.writerow(
-                [data, args.s, args.b, "ekc", new_score_size, total_follower, len(A), total_time, memory_usage])
-    print(f"Saved results to {data, args.s, args.b}")
 
 elif args.algorithm == "exact":
     start_time = time.time()
