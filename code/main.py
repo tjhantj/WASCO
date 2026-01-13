@@ -8,7 +8,6 @@ import csv
 import sys
 
 import experiment, experiment_iter, exp_func, exp_func_iter 
-import EKC
 import exact
 import compare
 
