@@ -31,9 +31,10 @@ You can run the script as follows:
 
 ```bash
 python main.py --network ../dataset/real/final/moreno_names/network.dat --algorithm exp --s 15 --b 30 --tactics TTT --output_path ../output/GPA.csv
-
+```
 ```bash
 python main.py --network ../dataset/real/final/moreno_names/network.dat --algorithm compare --s 15 --b 30 --compare_tactic degree --output_path ../output/compare.csv
-
+```
 ```bash
 python main.py --network ../dataset/real/exact/karate/network.dat --algorithm exact --s 5 --b 4 --output_path ../output/exact.csv
+```
