@@ -66,8 +66,8 @@ static void write_csv_row(const std::string& path, const std::vector<std::string
 struct Args {
     std::string algorithm = "exp";
     std::string network = "../dataset/test/new_network.dat";
-    int s = 5;
-    int b = 10;
+    int s = 15;
+    int b = 60;
     std::string tactics = "TTT";
     std::string calculating_iter = "F";
     std::string compare_tactic = "random";
