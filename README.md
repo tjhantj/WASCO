@@ -32,8 +32,8 @@ Here, `node_u` and `node_v` denote the two endpoint node IDs, and `weight` speci
 
 | Option               | Type    | Default                              | Description |
 |----------------------|---------|--------------------------------------|-------------|
-| `--s`                | `int`   | `5`                                  | s threshold parameter |
-| `--b`                | `int`   | `10`                                 | b threshold parameter |
+| `--s`                | `int`   | `15`                                  | s threshold parameter |
+| `--b`                | `int`   | `60`                                 | b threshold parameter |
 | `--algorithm`        | `str`   | `exp`                                | The algorithm to run. Options: `exp`, `exact`, `compare` |
 | `--network`          | `str`   | `../dataset/test/new_network.dat`    | Path to the input dataset file |
 | `--tactics`          | `str`   | `TTT`                                | Optimization tactics for the `exp` algorithm (Format: "XYZ"). X (T1): Candidate pruning, Y (T2): Upper bound pruning, Z (T3): Reuse Strategy (e.g., `TTT` enables all (GPA), `FFF` disables all (GIA)) |
