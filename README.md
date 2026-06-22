@@ -1,6 +1,6 @@
 # WASCO
 
-This repository proposes the WASCO algorithm in the following paper submitted to SIGMOD 2027.
+This repository proposes the WASCO algorithm in the following paper submitted to VLDB 2027.
 
 ## Source code info
 
@@ -47,10 +47,10 @@ Here, `node_u` and `node_v` denote the two endpoint node IDs, and `weight` speci
 Run the binary from the `code` directory (so the default relative dataset/output paths resolve correctly):
 
 ```bash
-./build/wasco --network ../dataset/real/final/moreno_names/network.dat --algorithm exp --s 15 --b 30 --tactics TTT --output_path ../output/GPA.csv
+./build/wasco --network ../dataset/real/final/moreno_names/network.dat --algorithm exp --s 15 --b 60 --tactics TTT --output_path ../output/GPA.csv
 ```
 ```bash
-./build/wasco --network ../dataset/real/final/moreno_names/network.dat --algorithm compare --s 15 --b 30 --compare_tactic degree --output_path ../output/compare.csv
+./build/wasco --network ../dataset/real/final/moreno_names/network.dat --algorithm compare --s 15 --b 60 --compare_tactic degree --output_path ../output/compare.csv
 ```
 ```bash
 ./build/wasco --network ../dataset/real/exact/karate/network.dat --algorithm exact --s 5 --b 4 --output_path ../output/exact.csv
