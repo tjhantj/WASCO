@@ -8,7 +8,7 @@
 #include <vector>
 
 enum class ScoreFamily { Deg, Weight, DegL, WeightL, Random };
-enum class IncrementPolicy { FullInitialLB, CostCurrentMEI };
+enum class IncrementPolicy { InitialLB, CurrentMEI };
 
 bool parse_heuristic_name(const std::string& name, ScoreFamily& fam, IncrementPolicy& pol);
 std::string heuristic_name(ScoreFamily fam, IncrementPolicy pol);

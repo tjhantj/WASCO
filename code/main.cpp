@@ -91,7 +91,7 @@ struct Args {
     std::string tactics = "TTT";
     std::string calculating_iter = "F";
     std::string delta_tactic = "mincost";
-    std::string heuristic = "Deg-Cost";
+    std::string heuristic = "Deg-MEI";
     int seed = 1;
     std::string output_path = "../output/results.csv";
 };

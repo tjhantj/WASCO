@@ -11,12 +11,12 @@
 // -------------------------------------------------------------------------
 bool parse_heuristic_name(const std::string& name, ScoreFamily& fam, IncrementPolicy& pol) {
     std::string base;
-    if (name.size() > 5 && name.compare(name.size() - 5, 5, "-Full") == 0) {
-        pol = IncrementPolicy::FullInitialLB;
-        base = name.substr(0, name.size() - 5);
-    } else if (name.size() > 5 && name.compare(name.size() - 5, 5, "-Cost") == 0) {
-        pol = IncrementPolicy::CostCurrentMEI;
-        base = name.substr(0, name.size() - 5);
+    if (name.size() > 3 && name.compare(name.size() - 3, 3, "-LB") == 0) {
+        pol = IncrementPolicy::InitialLB;
+        base = name.substr(0, name.size() - 3);
+    } else if (name.size() > 4 && name.compare(name.size() - 4, 4, "-MEI") == 0) {
+        pol = IncrementPolicy::CurrentMEI;
+        base = name.substr(0, name.size() - 4);
     } else {
         return false;
     }
@@ -38,7 +38,7 @@ std::string heuristic_name(ScoreFamily fam, IncrementPolicy pol) {
         case ScoreFamily::WeightL: base = "Weight-L"; break;
         case ScoreFamily::Random: base = "Random"; break;
     }
-    return base + (pol == IncrementPolicy::FullInitialLB ? "-Full" : "-Cost");
+    return base + (pol == IncrementPolicy::InitialLB ? "-LB" : "-MEI");
 }
 
 // -------------------------------------------------------------------------
@@ -319,7 +319,7 @@ HeuristicResult run_heuristic(const Graph& G0, int s, int b, ScoreFamily fam, In
         else G.add_edge(u, v, d);
     };
 
-    if (pol == IncrementPolicy::FullInitialLB) {
+    if (pol == IncrementPolicy::InitialLB) {
         auto set_filter = [&]() {
             int thr = s - (b - spent);
             OrderFilter f;
@@ -332,7 +332,7 @@ HeuristicResult run_heuristic(const Graph& G0, int s, int b, ScoreFamily fam, In
         if (b > 0) set_filter();
         while (spent < b && st.next(score, key)) {
             int d = lb0(key.a, key.b);
-            if (d < 1 || d > b - spent) throw std::logic_error("Full: filtered pair is not affordable");
+            if (d < 1 || d > b - spent) throw std::logic_error("LB: filtered pair is not affordable");
             apply(key.a, key.b, d);
             spent += d;
             res.num_actions++;
@@ -370,14 +370,14 @@ HeuristicResult run_heuristic(const Graph& G0, int s, int b, ScoreFamily fam, In
                 continue;
             }
             if (ce.delta < ce.lower_bound || ce.delta > r || ce.gain <= 0) {
-                throw std::logic_error("Cost: inconsistent MEI");
+                throw std::logic_error("MEI: inconsistent increment");
             }
             apply(key.a, key.b, ce.delta);
             spent += ce.delta;
             cur.assign(n, {-1, -1});
             int now = calculate_s_core(G, all, s, cur);
             if (now - cur_core != ce.gain) {
-                throw std::logic_error("Cost: follower count differs from the s-core update");
+                throw std::logic_error("MEI: follower count differs from the s-core update");
             }
             cur_core = now;
             res.num_actions++;
