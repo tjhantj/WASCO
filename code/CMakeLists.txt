@@ -18,7 +18,7 @@ set(COMMON_SOURCES
     exp_func.cpp
     experiment.cpp
     exact.cpp
-    compare.cpp
+    heuristic.cpp
 )
 
 # Main wasco binary

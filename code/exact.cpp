@@ -5,8 +5,7 @@
 #include <map>
 
 // -------------------------------------------------------------------------
-// Generate all combinations with replacement of size b from candidate_edges
-// This is exponential; only feasible for small b and small candidate sets.
+// combinations_with_replacement
 // -------------------------------------------------------------------------
 static void combinations_with_replacement_helper(
     const std::vector<std::pair<int,int>>& pool, int r, int start,
@@ -34,7 +33,6 @@ ExactResult exact_run(Graph& G, int s, int b) {
     int s_core_num = calculate_s_core(G_prime, all_n, s, coreness);
     int initial_size = s_core_num;
 
-    // Find non-s-core and s_cand
     std::vector<int> non_s_core;
     int s_cand = -1;
     for (int nd = 0; nd < G_prime.n; nd++) {
@@ -50,7 +48,6 @@ ExactResult exact_run(Graph& G, int s, int b) {
         return result;
     }
 
-    // Generate candidate edges
     std::vector<std::pair<int,int>> candidate_edges;
     int nn = (int)non_s_core.size();
     for (int i = 0; i < nn; i++) {
@@ -62,7 +59,6 @@ ExactResult exact_run(Graph& G, int s, int b) {
         candidate_edges.push_back({u, s_cand});
     }
 
-    // Generate all combinations_with_replacement of size b
     std::vector<std::vector<int>> combos;
     std::vector<int> cur;
     combinations_with_replacement_helper(candidate_edges, b, 0, cur, combos);
@@ -71,13 +67,11 @@ ExactResult exact_run(Graph& G, int s, int b) {
     std::map<std::pair<int,int>, int> best_combo;
 
     for (auto& combo_indices : combos) {
-        // Count occurrences
         std::map<std::pair<int,int>, int> combo_map;
         for (int idx : combo_indices) {
             combo_map[candidate_edges[idx]]++;
         }
 
-        // Build temp graph
         Graph G_temp = G.copy();
         for (auto& [e, delta] : combo_map) {
             auto [u, v] = e;
@@ -100,7 +94,6 @@ ExactResult exact_run(Graph& G, int s, int b) {
         }
     }
 
-    // Apply best combo
     if (!best_combo.empty()) {
         for (auto& [e, delta] : best_combo) {
             auto [u, v] = e;

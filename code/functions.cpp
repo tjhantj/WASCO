@@ -9,17 +9,12 @@
 // calculate_s_core
 // -------------------------------------------------------------------------
 int calculate_s_core(Graph& G, const std::vector<int>& nodes, int s, Coreness& coreness) {
-    // Initialize all nodes in the set to label=true
-    // Build a set for O(1) membership test — critical for subset (T3 reuse) calls
     std::unordered_set<int> nodes_set(nodes.begin(), nodes.end());
     for (int node : nodes) {
         G.label[node] = true;
     }
     int s_core_num = (int)nodes.size();
 
-    // weight_sum[node] = sum of ALL neighbor weights (includes s-core neighbors
-    // outside the subset — they contribute to the initial weight but are never
-    // removed, so their weight stays accounted for implicitly)
     std::unordered_map<int,int> weight_sum;
     weight_sum.reserve(nodes.size());
     for (int node : nodes) {
@@ -30,14 +25,12 @@ int calculate_s_core(Graph& G, const std::vector<int>& nodes, int s, Coreness& c
         weight_sum[node] = ws;
     }
 
-    // Min-heap: (weight, node) — lazy deletion via label check
     using PII = std::pair<int,int>;
     std::priority_queue<PII, std::vector<PII>, std::greater<PII>> heap;
     for (int node : nodes) {
         heap.push({weight_sum[node], node});
     }
 
-    // Core decomposition with layer tracking
     while (!heap.empty()) {
         auto [current_core, top_node] = heap.top();
         if (current_core >= s) break;
@@ -51,18 +44,13 @@ int calculate_s_core(Graph& G, const std::vector<int>& nodes, int s, Coreness& c
                 auto [weight, node] = heap.top();
                 heap.pop();
 
-                // lazy deletion: skip if already processed
                 if (!G.label[node]) continue;
 
                 coreness[node] = {current_core, layer};
 
-                // Update neighbors — ONLY those in the nodes_set.
-                // Python: "if neighbor not in nodes: continue"
-                // Using label==false as "already removed" is NOT sufficient here:
-                // s-core nodes outside the subset also have label==true.
                 for (auto& [neighbor, ew] : G.adj[node]) {
-                    if (!nodes_set.count(neighbor)) continue;  // not in our subset
-                    if (!G.label[neighbor]) continue;           // already removed
+                    if (!nodes_set.count(neighbor)) continue;
+                    if (!G.label[neighbor]) continue;
                     weight_sum[neighbor] -= ew;
                     temp[neighbor] = weight_sum[neighbor];
                 }
@@ -93,126 +81,101 @@ int computeDelta(Graph& G, int s, int u, int v, const Coreness& coreness) {
 // FindFollowers
 // -------------------------------------------------------------------------
 std::unordered_set<int> FindFollowers(int u, int v, int delta_e, Graph& G, int s, Coreness& coreness) {
-    std::unordered_set<int> F;
-
-    // Add or increase edge
-    bool edge_added = false;
-    if (G.has_edge(u, v)) {
-        G.increase_weight(u, v, delta_e);
-        edge_added = false;
-    } else {
+    bool edge_added = !G.has_edge(u, v);
+    if (edge_added) {
         G.add_edge(u, v, delta_e);
-        edge_added = true;
+    } else {
+        G.increase_weight(u, v, delta_e);
     }
+    auto rollback = [&]() {
+        if (edge_added) {
+            G.remove_edge(u, v);
+        } else {
+            G.increase_weight(u, v, -delta_e);
+        }
+    };
 
-    // Build priority queue with non-s-core endpoints
-    // PQ element: (coreness, index, node) - min-heap by coreness then index
+    enum : char { IN_PQ = 1, IN_F = 2, DEAD = 3 };
+    std::unordered_map<int,char> state;
+    std::unordered_map<int,long long> sigma_plus;
+
     using Elem = std::tuple<std::pair<int,int>, int, int>;
     std::priority_queue<Elem, std::vector<Elem>, std::greater<Elem>> PQ;
-    // Use a counter (not a set) to track PQ membership.
-    // Python's heap may hold duplicate entries for the same node; the "in PQ" check
-    // in sigma_plus looks at ALL heap entries. So we count how many copies each node
-    // has in the heap: the node is "in PQ" as long as count > 0.
-    std::unordered_map<int,int> pq_count;
     int index_PQ = 0;
 
     auto push_pq = [&](int nd) {
+        state[nd] = IN_PQ;
         PQ.push({coreness[nd], index_PQ++, nd});
-        pq_count[nd]++;
     };
 
-    if (u == v) {
-        if (!G.label[u]) {
-            push_pq(u);
-        }
-    } else {
-        for (int nd : {u, v}) {
-            if (!G.label[nd]) {
-                push_pq(nd);
-            }
+    for (int nd : {u, v}) {
+        if (!G.label[nd] && !state.count(nd)) {
+            push_pq(nd);
         }
     }
-
-    std::unordered_map<int,int> sigma_plus;
 
     while (!PQ.empty()) {
         auto [cor_x, idx_x, x] = PQ.top();
         PQ.pop();
-        // Decrement count; remove from map when count reaches 0
-        if (--pq_count[x] == 0) pq_count.erase(x);
 
-        // σ⁺(x) = sum of weights to neighbors that are:
-        // label==true (s-core) OR coreness > coreness[x] OR in F OR in PQ
-        int sp = 0;
+        long long sp = 0;
         for (auto& [nb, w] : G.adj[x]) {
-            bool qualifies = false;
             if (G.label[nb]) {
-                qualifies = true;
-            } else if (coreness[nb] > coreness[x]) {
-                qualifies = true;
-            } else if (F.count(nb)) {
-                qualifies = true;
-            } else if (pq_count.count(nb)) {
-                qualifies = true;
+                sp += w;
+                continue;
             }
-            if (qualifies) sp += w;
+            auto it = state.find(nb);
+            if (it == state.end()) {
+                if (coreness[nb] > coreness[x]) sp += w;
+            } else if (it->second != DEAD) {
+                sp += w;
+            }
         }
-        sigma_plus[x] = sp;
 
         if (sp >= s) {
-            F.insert(x);
-            // Push neighbors that are non-s-core, not in F, coreness > coreness[x]
+            sigma_plus[x] = sp;
+            state[x] = IN_F;
             for (auto& [y, w] : G.adj[x]) {
-                if (!G.label[y] && !F.count(y) && coreness[y] > coreness[x]) {
+                if (!G.label[y] && !state.count(y) && coreness[y] > coreness[x]) {
                     push_pq(y);
                 }
             }
-        } else {
-            // BFS cascade removal.
-            // IMPORTANT: the neighbor propagation runs for EVERY node popped from Q,
-            // not just those in F. This matches Python: the "for z in neighbors(y)"
-            // loop is outside the "if y in F" block.
-            std::deque<int> Q;
-            Q.push_back(x);
-            bool early_exit = false;
-            while (!Q.empty() && !early_exit) {
-                int y = Q.front();
-                Q.pop_front();
-                if (F.count(y)) {
-                    F.erase(y);
-                    if (y == u || y == v) {
-                        early_exit = true;
-                        break;
+            continue;
+        }
+
+        state[x] = DEAD;
+        if (x == u || x == v) {
+            rollback();
+            return {};
+        }
+
+        std::deque<int> Q;
+        Q.push_back(x);
+        while (!Q.empty()) {
+            int y = Q.front();
+            Q.pop_front();
+            for (auto& [z, w] : G.adj[y]) {
+                auto it = state.find(z);
+                if (it == state.end() || it->second != IN_F) continue;
+                sigma_plus[z] -= w;
+                if (sigma_plus[z] < s) {
+                    it->second = DEAD;
+                    if (z == u || z == v) {
+                        rollback();
+                        return {};
                     }
+                    Q.push_back(z);
                 }
-                // Always propagate to F-neighbors (even if y was not in F)
-                for (auto& [z, w] : G.adj[y]) {
-                    if (F.count(z)) {
-                        sigma_plus[z] -= w;
-                        if (sigma_plus[z] < s) {
-                            Q.push_back(z);
-                        }
-                    }
-                }
-            }
-            if (early_exit) {
-                if (edge_added) {
-                    G.remove_edge(u, v);
-                } else {
-                    G.increase_weight(u, v, -delta_e);
-                }
-                return {};
             }
         }
     }
 
-    // Roll back edge change
-    if (edge_added) {
-        G.remove_edge(u, v);
-    } else {
-        G.increase_weight(u, v, -delta_e);
-    }
+    rollback();
 
+    std::unordered_set<int> F;
+    for (auto& [nd, st] : state) {
+        if (st == IN_F) F.insert(nd);
+    }
     return F;
 }
 
@@ -244,7 +207,7 @@ double Upperbound(Graph& G, int u, const Coreness& coreness, int s, const std::s
     }
 
     double denominator;
-    if (delta_tactic == "compute") {
+    if (delta_tactic == "compute" || delta_tactic == "mincost") {
         denominator = (double)(s - coreness[u].first);
     } else {
         int max_weight = 0;
@@ -255,7 +218,6 @@ double Upperbound(Graph& G, int u, const Coreness& coreness, int s, const std::s
     }
 
     if (denominator <= 0) {
-        // Avoid division by zero; return large value
         return (double)count;
     }
     return (double)count / denominator;

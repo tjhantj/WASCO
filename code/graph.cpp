@@ -13,7 +13,6 @@ Graph load_graph(const std::string& path) {
         throw std::runtime_error("Cannot open file: " + path);
     }
 
-    // Read all edges; nodes may not be contiguous or 0-indexed
     std::vector<std::tuple<int,int,double>> raw_edges;
     std::set<int> node_set;
     std::string line;
@@ -29,7 +28,6 @@ Graph load_graph(const std::string& path) {
     }
     fin.close();
 
-    // Build relabel map: sorted original ids -> 0-indexed
     std::vector<int> sorted_nodes(node_set.begin(), node_set.end());
     std::sort(sorted_nodes.begin(), sorted_nodes.end());
     std::map<int,int> relabel;
@@ -40,7 +38,6 @@ Graph load_graph(const std::string& path) {
     int n = (int)sorted_nodes.size();
     Graph G(n);
 
-    // Track node insertion order (first appearance order, matching Python's G.nodes() order)
     std::vector<bool> seen(n, false);
     std::vector<int> insertion_order;
     insertion_order.reserve(n);
@@ -49,9 +46,8 @@ Graph load_graph(const std::string& path) {
         int u = relabel[ou];
         int v = relabel[ov];
         int w = (int)std::ceil(ow);
-        if (u == v) continue;  // skip self loops in edge list
+        if (u == v) continue;
 
-        // Track first appearance
         if (!seen[u]) { seen[u] = true; insertion_order.push_back(u); }
         if (!seen[v]) { seen[v] = true; insertion_order.push_back(v); }
 

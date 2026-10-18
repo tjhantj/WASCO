@@ -4,18 +4,14 @@
 #include <string>
 #include <utility>
 
-// Adjacency list: adj[u][v] = weight of edge (u,v)
 struct Graph {
-    int n;  // number of nodes (0-indexed)
-    std::vector<std::unordered_map<int,int>> adj;
-    std::vector<bool> label;  // label[v] = true means v is in s-core (active)
-    // Tracks the order in which nodes first appeared when edges were added.
-    // Used to replicate Python's G.nodes() insertion-order CC building.
+    int n;
+    std::vector<std::unordered_map<int,int>> adj;  // adj[u][v] = w(u, v)
+    std::vector<bool> label;                       // label[v]: v is in the s-core
     std::vector<int> node_insertion_order;
 
     Graph() : n(0) {}
     explicit Graph(int num_nodes) : n(num_nodes), adj(num_nodes), label(num_nodes, false) {
-        // Default: nodes in 0..n-1 order
         node_insertion_order.resize(num_nodes);
         for (int i = 0; i < num_nodes; i++) node_insertion_order[i] = i;
     }
@@ -46,7 +42,6 @@ struct Graph {
         adj[v].erase(u);
     }
 
-    // Deep copy
     Graph copy() const {
         Graph g(n);
         g.adj = adj;
@@ -56,6 +51,4 @@ struct Graph {
     }
 };
 
-// Load graph from weighted edgelist file (space/tab separated: u v w per line)
-// Applies 0-indexing relabel and ceil on weights.
 Graph load_graph(const std::string& path);

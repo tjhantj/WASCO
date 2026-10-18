@@ -14,16 +14,11 @@ struct AnchorRecord {
     int delta;
     double FR;
     int num_followers;
-};
-
-struct AnchorRecordIter {
-    std::pair<int,int> edge;
-    int delta;
-    double FR;
-    int num_followers;
+    int lower_bound;
     bool self_flag;
     bool reinforce_flag;
 };
+using AnchorRecordIter = AnchorRecord;
 
 struct RunResult {
     std::vector<AnchorRecord> A;
@@ -31,6 +26,8 @@ struct RunResult {
     double UT;
     Graph G_prime;
     int total_follower;
+    int initial_s_core = 0;
+    int spent = 0;
 };
 
 struct IterRunResult {
@@ -40,16 +37,17 @@ struct IterRunResult {
     Graph G_prime;
     int total_follower;
     long long global_cnt;
+    int initial_s_core = 0;
+    int spent = 0;
 };
 
-// CC cache structures
 struct CCCache {
-    std::unordered_map<int,int> comp_of;           // node -> CC id
-    std::unordered_map<int, std::unordered_set<int>> nodes_in;  // CC id -> node set
-    std::map<int, BestEdge> intra_best;             // CC id -> best edge (ordered for Python-matching iteration)
+    std::unordered_map<int,int> comp_of;
+    std::unordered_map<int, std::unordered_set<int>> nodes_in;
+    std::map<int, BestEdge> intra_best;
+    int next_cid = 0;
 };
 
-// Build initial CC caches
 CCCache build_initial_caches(Graph& G, int s, int b, int spent,
                                Coreness& coreness,
                                std::unordered_map<int,double>& upperbound,
@@ -58,7 +56,6 @@ CCCache build_initial_caches(Graph& G, int s, int b, int spent,
                                const std::string& delta_tactic,
                                long long* counter = nullptr);
 
-// Find best intra-CC edge
 BestEdge find_intra_best(Graph& G, const std::unordered_set<int>& nodes,
                           Coreness& coreness, int s, int b, int spent,
                           std::unordered_map<int,double>& upperbound,
@@ -66,12 +63,10 @@ BestEdge find_intra_best(Graph& G, const std::unordered_set<int>& nodes,
                           int s_cand, const std::string& delta_tactic,
                           long long* counter = nullptr);
 
-// Main GPA run function
 RunResult run(Graph& G, int s, int b,
               bool T1_self_edge, bool T2_upperbound, bool T3_reuse,
               const std::string& delta_tactic);
 
-// Iter version (tracks GLOBAL_CNT)
 IterRunResult run_iter(Graph& G, int s, int b,
                         bool T1_self_edge, bool T2_upperbound, bool T3_reuse,
                         const std::string& delta_tactic);
