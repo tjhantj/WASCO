@@ -17,4 +17,4 @@ struct ExactResult {
     int followers;
 };
 
-ExactResult exact_run(Graph& G, int s, int b);
+ExactResult exact_run(Graph& G, int s, int b, int threads = 1);

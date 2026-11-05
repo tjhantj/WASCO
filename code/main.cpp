@@ -85,14 +85,16 @@ static void write_csv_row(const std::string& path, const std::vector<std::string
 // -------------------------------------------------------------------------
 struct Args {
     std::string algorithm = "exp";
-    std::string network = "../dataset/real/exact/karate/network.dat";
+    std::string network = "../dataset/real/exact/sp_primary_day2/network.dat";
     int s = 15;
     int b = 60;
     std::string tactics = "TTT";
     std::string calculating_iter = "F";
     std::string delta_tactic = "mincost";
+    std::string mei_method = "mei";
     std::string heuristic = "Deg-MEI";
     int seed = 1;
+    int threads = 1;
     std::string output_path = "../output/results.csv";
 };
 
@@ -109,8 +111,10 @@ static Args parse_args(int argc, char* argv[]) {
         else if (key == "--tactics") { args.tactics = val; i++; }
         else if (key == "--calculating_iter") { args.calculating_iter = val; i++; }
         else if (key == "--delta_tactic") { args.delta_tactic = val; i++; }
+        else if (key == "--mei_method") { args.mei_method = val; i++; }
         else if (key == "--heuristic") { args.heuristic = val; i++; }
         else if (key == "--seed") { args.seed = std::stoi(val); i++; }
+        else if (key == "--threads") { args.threads = std::stoi(val); i++; }
         else if (key == "--output_path") { args.output_path = val; i++; }
     }
     return args;
@@ -138,6 +142,20 @@ int main(int argc, char* argv[]) {
         args.delta_tactic != "naive") {
         std::cerr << "Unknown --delta_tactic: " << args.delta_tactic
                   << " (use mincost, compute or naive)" << std::endl;
+        return 1;
+    }
+    MeiMethod mei_method;
+    if (!parse_mei_method(args.mei_method, mei_method)) {
+        std::cerr << "Unknown --mei_method: " << args.mei_method
+                  << " (use mei, lbfirst, binary, linear or galloping)" << std::endl;
+        return 1;
+    }
+    if (mei_method != MeiMethod::Mei && args.delta_tactic != "mincost") {
+        std::cerr << "--mei_method needs --delta_tactic mincost" << std::endl;
+        return 1;
+    }
+    if (args.threads < 1) {
+        std::cerr << "--threads must be at least 1" << std::endl;
         return 1;
     }
 
@@ -176,15 +194,20 @@ int main(int argc, char* argv[]) {
         const std::vector<std::string> iter_cols =
             {"data","s","b","tactics","num_s_core","follower","num_iter",
              "num_anchored_edges","iter","delta","num_follower","self","reinforce",
-             "total_time","memory","delta_tactic","edge_u","edge_v","lower_bound"};
+             "total_time","memory","delta_tactic","edge_u","edge_v","lower_bound",
+             "mei_method","num_ff_calls"};
         const std::vector<std::string> std_cols =
             {"data","s","b","tactics","num_s_core","follower","num_anchored_edges",
              "iter","delta","num_follower","total_time","memory",
-             "delta_tactic","edge_u","edge_v","lower_bound"};
+             "delta_tactic","edge_u","edge_v","lower_bound","mei_method","num_ff_calls"};
         const bool iter_mode = (args.calculating_iter == "T");
         const auto& cols = iter_mode ? iter_cols : std_cols;
         if (!csv_header_ok(args.output_path, cols)) return 1;
+        const bool mincost = (args.delta_tactic == "mincost");
+        const std::string method_name = mincost ? mei_method_name(mei_method) : "";
 
+        g_mei_method = mei_method;
+        g_ff_calls = 0;
         Graph G_copy = G_orig.copy();
         IterRunResult res;
         if (iter_mode) {
@@ -211,14 +234,16 @@ int main(int argc, char* argv[]) {
             if (res.G_prime.label[i]) s_core_num++;
         }
 
-        std::cout << "delta_tactic=" << args.delta_tactic
-                  << " num_anchored=" << res.A.size()
+        std::cout << "delta_tactic=" << args.delta_tactic;
+        if (mincost) std::cout << " mei_method=" << method_name;
+        std::cout << " num_anchored=" << res.A.size()
                   << " initial_s_core=" << res.initial_s_core
                   << " s_core=" << s_core_num
                   << " total_follower=" << res.total_follower
-                  << " spent=" << res.spent << "/" << args.b;
+                  << " spent=" << res.spent << "/" << args.b
+                  << " ff_calls=" << g_ff_calls;
         if (iter_mode) std::cout << " global_cnt=" << res.global_cnt;
-        std::cout << std::endl;
+        std::cout << " time=" << total_time << std::endl;
         if (s_core_num - res.initial_s_core != res.total_follower) {
             std::cerr << "Warning: total_follower (" << res.total_follower
                       << ") != final s-core - initial s-core ("
@@ -270,13 +295,15 @@ int main(int argc, char* argv[]) {
             row.push_back(std::to_string(rec.edge.first));
             row.push_back(std::to_string(rec.edge.second));
             row.push_back(std::to_string(rec.lower_bound));
+            row.push_back(method_name);
+            row.push_back(std::to_string(g_ff_calls));
             write_csv_row(args.output_path, row);
         }
         std::cout << "Saved results to (" << data << ", " << args.s << ", " << args.b << ", " << args.tactics << ")" << std::endl;
 
     } else if (args.algorithm == "exact") {
         Graph G_copy = G_orig.copy();
-        ExactResult res = exact_run(G_copy, args.s, args.b);
+        ExactResult res = exact_run(G_copy, args.s, args.b, args.threads);
         auto t_end = std::chrono::high_resolution_clock::now();
         double total_time = std::chrono::duration<double>(t_end - t_start).count();
 

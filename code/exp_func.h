@@ -30,6 +30,14 @@ struct CandidateEval {
     int gain = 0;
 };
 
+// How a mincost candidate finds its MEI. All methods give the same MEI and
+// followers; only the number of FindFollowers calls (g_ff_calls) differs.
+enum class MeiMethod { Mei, LbFirst, Binary, Linear, Galloping };
+extern MeiMethod g_mei_method;
+extern long long g_ff_calls;
+bool parse_mei_method(const std::string& name, MeiMethod& m);
+const char* mei_method_name(MeiMethod m);
+
 CandidateEval evaluate_candidate(Graph& G, int s, int budget_left, int eu, int ev,
                                  const std::string& delta_tactic, Coreness& coreness,
                                  int orig_u = -1, int orig_v = -1,

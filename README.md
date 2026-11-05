@@ -28,20 +28,24 @@ Each line in `network.dat` represents a weighted edge and consists of three valu
 
 Here, `node_u` and `node_v` denote the two endpoint node IDs, and `weight` specifies the edge weight between them.
 
+`dataset/real/exact/sp_primary_day2` is the day-2 contact network of the SocioPatterns primary school data (`sp_primary_school/day_2` in Netzschleuder), where the weight of an edge is its `count` attribute, i.e., the number of contacts between the two individuals during the day. It is used for the comparison with the exact algorithm.
+
 ## Command Line Options
 
-| Option               | Type  | Default                                    | Description |
-|----------------------|-------|--------------------------------------------|-------------|
-| `--s`                | `int` | `15`                                       | s threshold parameter |
-| `--b`                | `int` | `60`                                       | b threshold parameter |
-| `--algorithm`        | `str` | `exp`                                      | The algorithm to run. Options: `exp`, `exact`, `heuristic` |
-| `--network`          | `str` | `../dataset/real/exact/karate/network.dat` | Path to the input dataset file |
-| `--tactics`          | `str` | `TTT`                                      | Optimization tactics for the `exp` algorithm (Format: "XYZ"). X (T1): Candidate pruning, Y (T2): Upper bound pruning, Z (T3): Reuse Strategy (e.g., `TTT` enables all (GPA), `FFF` disables all (GIA)) |
-| `--output_path`      | `str` | `../output/results.csv`                    | Path to save the CSV result file |
-| `--delta_tactic`     | `str` | `mincost`                                  | How to calculate delta. Options: `mincost` (MEI), `compute` (lower bound increment), `naive` (s - w(e)) |
-| `--heuristic`        | `str` | `Deg-MEI`                                  | Baseline for the `heuristic` algorithm. Options: `Deg`, `Weight`, `Deg-L`, `Weight-L`, `Random`, each followed by `-LB` or `-MEI` (e.g., `Weight-L-MEI`) |
-| `--seed`             | `int` | `1`                                        | Random seed for `Random-LB` and `Random-MEI` |
-| `--calculating_iter` | `str` | `F`                                        | `T` to track detailed iteration logs, `F` for a standard run |
+| Option               | Type  | Default                                             | Description |
+|----------------------|-------|-----------------------------------------------------|-------------|
+| `--s`                | `int` | `15`                                                | s threshold parameter |
+| `--b`                | `int` | `60`                                                | b threshold parameter |
+| `--algorithm`        | `str` | `exp`                                               | The algorithm to run. Options: `exp`, `exact`, `heuristic` |
+| `--network`          | `str` | `../dataset/real/exact/sp_primary_day2/network.dat` | Path to the input dataset file |
+| `--tactics`          | `str` | `TTT`                                               | Optimization tactics for the `exp` algorithm (Format: "XYZ"). X (T1): Candidate pruning, Y (T2): Upper bound pruning, Z (T3): Reuse Strategy (e.g., `TTT` enables all (GPA), `FFF` disables all (GIA)) |
+| `--output_path`      | `str` | `../output/results.csv`                             | Path to save the CSV result file |
+| `--delta_tactic`     | `str` | `mincost`                                           | How to calculate delta. Options: `mincost` (MEI), `compute` (lower bound increment), `naive` (s - w(e)) |
+| `--mei_method`       | `str` | `mei`                                               | How the MEI of a candidate edge is computed with `--delta_tactic mincost`. Options: `mei` (one follower computation with the test increment, MEI from the weighted degrees of the endpoints within the s-core and the followers), `lbfirst` (lower bound increment first, then `mei`), `binary` (binary search), `linear` (linear search from the lower bound increment), `galloping` (exponential search). All options give the same result and differ only in the number of follower computations (`num_ff_calls` column) and the running time |
+| `--heuristic`        | `str` | `Deg-MEI`                                           | Baseline for the `heuristic` algorithm. Options: `Deg`, `Weight`, `Deg-L`, `Weight-L`, `Random`, each followed by `-LB` or `-MEI` (e.g., `Weight-L-MEI`) |
+| `--seed`             | `int` | `1`                                                 | Random seed for `Random-LB` and `Random-MEI` |
+| `--threads`          | `int` | `1`                                                 | Number of threads for the `exact` algorithm (the result does not depend on it) |
+| `--calculating_iter` | `str` | `F`                                                 | `T` to track detailed iteration logs, `F` for a standard run |
 
 ## Usage
 
@@ -54,5 +58,10 @@ Run the binary from the `code` directory (so the default relative dataset/output
 ./build/wasco --network ../dataset/real/final/moreno_names/network.dat --algorithm heuristic --s 15 --b 60 --heuristic Deg-MEI --output_path ../output/heuristic.csv
 ```
 ```bash
-./build/wasco --network ../dataset/real/exact/karate/network.dat --algorithm exact --s 5 --b 4 --output_path ../output/exact.csv
+./build/wasco --network ../dataset/real/final/moreno_names/network.dat --algorithm exp --s 15 --b 60 --tactics TTT --delta_tactic mincost --mei_method binary --output_path ../output/GPA_binary.csv
 ```
+```bash
+./build/wasco --network ../dataset/real/exact/sp_primary_day2/network.dat --algorithm exact --s 109 --b 3 --threads 4 --output_path ../output/exact.csv
+```
+
+The `exact` algorithm evaluates every way of distributing the budget b over the candidate edges. Each combination is evaluated as it is generated and is not stored, so the memory usage does not grow with the number of combinations, but the running time still grows exponentially with b.

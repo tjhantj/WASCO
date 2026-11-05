@@ -4,6 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 
 // -------------------------------------------------------------------------
 // compute_delta_e
@@ -49,6 +50,33 @@ static bool exceeds(double fr, double bound) {
 }
 
 // -------------------------------------------------------------------------
+// MEI method
+// -------------------------------------------------------------------------
+MeiMethod g_mei_method = MeiMethod::Mei;
+long long g_ff_calls = 0;
+
+bool parse_mei_method(const std::string& name, MeiMethod& m) {
+    if (name == "mei") m = MeiMethod::Mei;
+    else if (name == "lbfirst") m = MeiMethod::LbFirst;
+    else if (name == "binary") m = MeiMethod::Binary;
+    else if (name == "linear") m = MeiMethod::Linear;
+    else if (name == "galloping") m = MeiMethod::Galloping;
+    else return false;
+    return true;
+}
+
+const char* mei_method_name(MeiMethod m) {
+    switch (m) {
+        case MeiMethod::Mei: return "mei";
+        case MeiMethod::LbFirst: return "lbfirst";
+        case MeiMethod::Binary: return "binary";
+        case MeiMethod::Linear: return "linear";
+        case MeiMethod::Galloping: return "galloping";
+    }
+    return "?";
+}
+
+// -------------------------------------------------------------------------
 // evaluate_candidate
 // -------------------------------------------------------------------------
 CandidateEval evaluate_candidate(Graph& G, int s, int budget_left, int eu, int ev,
@@ -59,6 +87,7 @@ CandidateEval evaluate_candidate(Graph& G, int s, int budget_left, int eu, int e
     if (delta_tactic != "mincost") {
         int delta_e = compute_delta_e(G, s, eu, ev, delta_tactic, coreness, orig_u, orig_v);
         if (delta_e <= 0 || delta_e > budget_left) return res;
+        g_ff_calls++;
         auto followers = FindFollowers(eu, ev, delta_e, G, s, coreness);
         if (counter) (*counter)++;
         res.feasible = true;
@@ -81,26 +110,91 @@ CandidateEval evaluate_candidate(Graph& G, int s, int budget_left, int eu, int e
         throw std::logic_error("evaluate_candidate: probe_delta < 1 for a non-core candidate");
     }
 
-    auto F = FindFollowers(eu, ev, probe_delta, G, s, coreness);
     if (counter) (*counter)++;
-    if (F.empty()) return res;
-
-    auto support_in_H = [&](int x) {
-        long long d = 0;
-        for (auto& [nb, w] : G.adj[x]) {
-            if (G.label[nb] || F.count(nb)) d += w;
-        }
-        return d;
+    auto follow = [&](int d) {
+        g_ff_calls++;
+        return FindFollowers(eu, ev, d, G, s, coreness);
     };
-    long long deg_u = support_in_H(eu);
-    long long deg_v = support_in_H(ev);
-    long long need = std::max({0LL, (long long)s - deg_u, (long long)s - deg_v});
-    int exact_delta = (int)need;
 
-    bool u_in_H = G.label[eu] || F.count(eu);
-    bool v_in_H = G.label[ev] || F.count(ev);
-    if (!u_in_H || !v_in_H || exact_delta < 1 ||
-        exact_delta < lower_bound || exact_delta > probe_delta) {
+    // MEI from the endpoint support in H = C u F
+    auto mei_from_support = [&](const std::unordered_set<int>& F) {
+        auto support_in_H = [&](int x) {
+            long long d = 0;
+            for (auto& [nb, w] : G.adj[x]) {
+                if (G.label[nb] || F.count(nb)) d += w;
+            }
+            return d;
+        };
+        bool u_in_H = G.label[eu] || F.count(eu);
+        bool v_in_H = G.label[ev] || F.count(ev);
+        if (!u_in_H || !v_in_H) return -1;
+        long long need = std::max({0LL, (long long)s - support_in_H(eu),
+                                   (long long)s - support_in_H(ev)});
+        return (int)need;
+    };
+
+    // Smallest d in [lo, hi] with followers, given F(lo-1) is empty and F = F(hi)
+    auto binary_search = [&](int lo, int hi, std::unordered_set<int>& F) {
+        while (lo < hi) {
+            int mid = lo + (hi - lo) / 2;
+            auto Fm = follow(mid);
+            if (Fm.empty()) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+                F = std::move(Fm);
+            }
+        }
+        return hi;
+    };
+
+    std::unordered_set<int> F;
+    int exact_delta = 0;
+    switch (g_mei_method) {
+        case MeiMethod::Mei:
+            F = follow(probe_delta);
+            if (F.empty()) return res;
+            exact_delta = mei_from_support(F);
+            break;
+        case MeiMethod::LbFirst:
+            F = follow(lower_bound);
+            if (!F.empty()) {
+                exact_delta = lower_bound;
+                break;
+            }
+            if (probe_delta == lower_bound) return res;
+            F = follow(probe_delta);
+            if (F.empty()) return res;
+            exact_delta = mei_from_support(F);
+            break;
+        case MeiMethod::Binary:
+            F = follow(probe_delta);
+            if (F.empty()) return res;
+            exact_delta = binary_search(lower_bound, probe_delta, F);
+            break;
+        case MeiMethod::Linear:
+            for (int d = lower_bound; d <= probe_delta; d++) {
+                F = follow(d);
+                if (!F.empty()) { exact_delta = d; break; }
+            }
+            if (F.empty()) return res;
+            break;
+        case MeiMethod::Galloping: {
+            int prev = lower_bound - 1, d = lower_bound, gap = 1;
+            while (true) {
+                F = follow(d);
+                if (!F.empty()) break;
+                if (d == probe_delta) return res;
+                prev = d;
+                d = std::min(probe_delta, d + gap);
+                gap *= 2;
+            }
+            exact_delta = binary_search(prev + 1, d, F);
+            break;
+        }
+    }
+
+    if (exact_delta < 1 || exact_delta < lower_bound || exact_delta > probe_delta) {
         throw std::logic_error("evaluate_candidate: inconsistent mincost result for (" +
                                std::to_string(eu) + "," + std::to_string(ev) + ")");
     }

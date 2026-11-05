@@ -11,6 +11,8 @@ endif()
 
 add_compile_options(-Wall -Wextra -O2)
 
+find_package(Threads REQUIRED)
+
 # Common source files
 set(COMMON_SOURCES
     graph.cpp
@@ -29,3 +31,4 @@ add_executable(wasco
 
 # Include current directory for headers
 target_include_directories(wasco PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(wasco PRIVATE Threads::Threads)
