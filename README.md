@@ -61,5 +61,3 @@ Run the binary from the `code` directory (so the default relative dataset/output
 ```bash
 ./build/wasco --network ../dataset/real/exact/sp_primary_day2/network.dat --algorithm exact --s 109 --b 3 --threads 4 --output_path ../output/exact.csv
 ```
-
-The `exact` algorithm evaluates every way of distributing the budget b over the candidate edges. Each combination is evaluated as it is generated and is not stored, so the memory usage does not grow with the number of combinations, but the running time still grows exponentially with b.
