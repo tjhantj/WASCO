@@ -28,8 +28,6 @@ Each line in `network.dat` represents a weighted edge and consists of three valu
 
 Here, `node_u` and `node_v` denote the two endpoint node IDs, and `weight` specifies the edge weight between them.
 
-`dataset/real/exact/sp_primary_day2` is the day-2 contact network of the SocioPatterns primary school data (`sp_primary_school/day_2` in Netzschleuder), where the weight of an edge is its `count` attribute, i.e., the number of contacts between the two individuals during the day. It is used for the comparison with the exact algorithm.
-
 ## Command Line Options
 
 | Option               | Type  | Default                                             | Description |
