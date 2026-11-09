@@ -9,10 +9,7 @@
 
 // -------------------------------------------------------------------------
 // Exhaustive search over all combinations with replacement of size b from
-// the candidate edges. Each combination is evaluated as it is generated, so
-// no combination is stored. Increments never shrink the s-core, so only the
-// non-s-core nodes are peeled. Work is split by the first candidate index and
-// the result does not depend on the number of threads.
+// the candidate edges.
 // -------------------------------------------------------------------------
 
 namespace {
